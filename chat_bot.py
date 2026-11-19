@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
+import time
 import tiktoken
 load_dotenv()
 
@@ -31,17 +32,29 @@ class ChatBot:
                         'content':message
                         })
         response = self.llm.chat.completions.create(model='openai/gpt-oss-120b',
-                                                messages=self.messages)
+                                                messages=self.messages,
+                                                stream= True)
 
-        response_text =  response.choices[0].message.content
+        response_text =  ''
+        
+        for chunk in response:
+            if chunk.choices:
+                 delta = chunk.choices[0].delta.content
+                 if delta:
+                     print(delta,end='',flush=True)
+                     response_text += delta
+                     time.sleep(0.05)
+                     
+            if chunk.usage:
+                self.total_tokens += chunk.usage.total_tokens
+                self.input_tokens += chunk.usage.prompt_tokens
+                self.output_tokens += chunk.usage.completion_tokens
+                
 
         self.messages.append({
             'role':'assistant',
             'content':response_text
         })
-        self.total_tokens += response.usage.total_tokens
-        self.input_tokens += response.usage.prompt_tokens
-        self.output_tokens += response.usage.completion_tokens
 
 
         return response_text
@@ -58,8 +71,7 @@ class ChatBot:
             if token_count > 10:                                                     # limit User Prompt
                 print('Your prompt exceeded the limit. Try a shorter one, please')
                 continue
-            bot_answer = self.bot(user_input)
-            print(bot_answer)
+            self.bot(user_input)
 
     def cost(self):
         print("Cost : $",(self.input_tokens * 0.05 + self.output_tokens * 0.08) / 1_000_000)
