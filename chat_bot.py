@@ -25,7 +25,15 @@ class ChatBot:
         self.input_tokens = 0
         self.output_tokens = 0
         
-    
+        
+    def trim_messages(self,max_number = 4):
+        if len(self.messages) < max_number:
+            return
+        system_messages = [m for m in self.messages if m['role']=='system']
+        other_messages = [m for m in self.messages if m['role']!='system']
+        trimed_messages = other_messages[-max_number:]
+        self.messages = system_messages + trimed_messages
+            
     def bot(self,message:str):
         self.messages.append({
                         'role':"user",
@@ -56,6 +64,7 @@ class ChatBot:
             'content':response_text
         })
 
+        self.trim_messages()
 
         return response_text
 
@@ -68,7 +77,7 @@ class ChatBot:
                 break
             token_count = len(encoding.encode(user_input))
             
-            if token_count > 10:                                                     # limit User Prompt
+            if token_count > 100:                                                     # limit User Prompt
                 print('Your prompt exceeded the limit. Try a shorter one, please')
                 continue
             self.bot(user_input)
