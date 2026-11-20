@@ -49,9 +49,31 @@ def main():
     ids = generate_id(chunks)
     
     vactor_store.add_documents(chunks,ids=ids)
+     
+
+    while True:
+        user_input = input('(Type "q" to quit) Ask Something : ').strip().lower()
     
-    all_docs = vactor_store.get()
-    print(len(all_docs['documents']))
+        # Exit condition
+        if user_input == "q":
+            print("Good luck")
+            break
+        
+        retreved_chunks = vactor_store.similarity_search_with_score(user_input, k=3)
+        
+        for i,chunk in enumerate(retreved_chunks):
+            print(f'---- chunk {i+1} ----\n')
+            print(f'Score : {chunk[1]:.3f}')
+            print(f'Metadata : source : {chunk[0].metadata['source']}')
+            print(f'Page : source : {chunk[0].metadata['page']}')
+            print(f'{chunk[0].page_content[:200]}\n')
+            
+            
+    
+
+
+
+
 
 if __name__ == '__main__':
     main()
