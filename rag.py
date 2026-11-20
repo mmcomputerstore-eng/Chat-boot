@@ -1,10 +1,18 @@
 import hashlib
+import dotenv
+import os 
+from openai import OpenAI
 from langchain_chroma import Chroma
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
+dotenv.load_dotenv()
 
+client = OpenAI(
+            api_key=os.getenv("GROQ_API_KEY"),
+            base_url="https://api.groq.com/openai/v1"
+        )
 
 model = HuggingFaceEmbeddings(
     model_name = 'sentence-transformers/all-MiniLM-L6-v2',
@@ -17,6 +25,42 @@ vactor_store = Chroma(
     persist_directory='./chroma',
     collection_metadata={'hnsw:space':'cosine'}
 )
+
+def llm(query,context):
+    system_prompt = f"""You are a medical information assistant. Answer the user's question using ONLY the provided source documents.
+        Rules you must follow:
+
+        1. Base your answer ONLY on the provided sources. Do not use outside Knowledge.
+        2. If the sources   don't contain enough information to answer, say exactly:
+        "I don't have enough information to answer this question."
+        3. Cite sources using [Source N] notation whenever you use information from them.
+        4. If sources contradice each other, mention the contradiction.
+        5. Be consice. Answer in 3-5 sentences unless the question requires more detail.
+        6. Never speculate or make assumptions beyond what the sources say. 
+
+        Sources:
+        {context}"""
+    
+    messages = [
+        {
+            'role':'system','content':system_prompt
+        },
+        {
+            'role':'user','content':query
+        }
+    ]
+    
+    response = client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            temperature=0.7,
+            messages=messages
+        )
+    
+    return response.choices[0].message.content
+    
+
+
+    
 
 def generate_id(docs):
     return [
@@ -61,16 +105,18 @@ def main():
         
         retreved_chunks = vactor_store.similarity_search_with_score(user_input, k=3)
         
-        for i,chunk in enumerate(retreved_chunks):
-            print(f'---- chunk {i+1} ----\n')
-            print(f'Score : {chunk[1]:.3f}')
-            print(f'Metadata : source : {chunk[0].metadata['source']}')
-            print(f'Page : source : {chunk[0].metadata['page']}')
-            print(f'{chunk[0].page_content[:200]}\n')
+        parts = []
+        
+        for i,(doc,score) in enumerate(retreved_chunks):
+            parts.append(f"[source : {i+1} | Page {doc.metadata.get('page','?')} | Retrival score {score:.3f} \n {doc.page_content}]")
             
             
-    
-
+        context = '\n\n-----\n\n'.join(parts)
+        
+            
+        
+        print(llm(query=user_input,context=context))
+            
 
 
 
