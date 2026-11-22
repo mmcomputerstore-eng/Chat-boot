@@ -60,6 +60,16 @@ class Agent:
 
             print(response["messages"][-1].content)
 
+        # read old messages from database
+        config_history = {
+                    'configurable': {
+                    'thread_id': 'session_1'
+                    }
+                }
+        
+        state = self.agent.get_state(config_history)
+        print(state.values['messages'])
+        
 
 def main():
     db_url = os.getenv('DATABASE_URL')
